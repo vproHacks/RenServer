@@ -34,6 +34,7 @@ def create():
         data = dict(request.json)
         data['code'] = generate_code()
         games[data['code']] = data
+        return str({'code': data['code']})
     return redirect(url_for('index'))
 
 @app.route('/', methods=['POST', 'GET'])
