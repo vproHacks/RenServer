@@ -1,0 +1,239 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<title>RenTogether - Quiz Server</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
+		<noscript><link rel="stylesheet" href="{{ url_for('static', filename='css/noscript.css') }}" /></noscript>
+	</head>
+	<body class="is-preload">
+
+        <div id="wrapper">
+                <section id="main" class="wrapper style1">
+                    <div class="inner" id="content-div">
+                        <script src="https://cdn.socket.io/socket.io-3.0.1.min.js"></script>
+                        <script type="text/javascript">
+                            // Notice: I can't write JS for my life
+                            var parent = document.getElementById('content-div');
+                            var gameCode = "{{ game['code'] }}";
+                            var gameName = "{{ game['name'] }}";
+                            var gameHost = "{{ game['host'] }}";
+                            var socket = io();
+                            var count = 0;
+                            
+                            socket.emit('hello', {code: gameCode});
+
+                            socket.on('hello', function(data) {
+                                count = data.count; // Update Member count
+                                // Load the User interface
+                                // Prepare for some DOM style abuse
+                            });
+
+                            socket.on('event', function(data) {
+                                // Load data
+                                var image = data.image;
+                                var timeout = data.timeout;
+                                var choices = data.choices;
+                                var choice = null;
+                                var choice_shapes = [];
+
+                                // Clear Screen
+                                parent.innerHTML = "";
+                                
+                                // Load Canvas and Game Info on Side
+                                var row = document.createElement('div');
+                                row.classList.add("split");
+                                row.classList.add("style1");
+                                parent.appendChild(row);
+                                var canvasSection = document.createElement('section');
+                                var infoSection = document.createElement('section');
+
+                                var timeDisplay = document.createElement('h2');
+                                infoSection.appendChild(timeDisplay);
+                                
+
+                                var canvas = document.createElement('canvas');
+                                canvas.style = "background-image: url('" + "data:image/png;base64," + image + "');";
+                                var ctx = canvas.getContext('2d');
+                                var img = new Image();
+                                img.src = "data:image/png;base64," + image;
+                                
+                                img.onload = function (ev) {
+                                    canvas.width = img.width;
+                                    canvas.height = img.height;
+                                }
+                                
+                                for (let c of choices) {
+                                    choice_shapes.push({
+                                        name: c.x.toString() + ':' + c.y.toString(),
+                                        draw: function (style="rgba(255, 99, 71, 0.5)") {
+                                            ctx.beginPath();
+                                            ctx.arc(c.x, c.y, 20, 0, 2 * Math.PI);
+                                            ctx.fillStyle = style;
+                                            ctx.fill();
+                                            ctx.closePath();
+                                        }
+                                    });
+                                }
+
+                                canvas.onmousemove = function(event) {
+                                    var r = canvas.getBoundingClientRect(),
+                                        x = event.clientX - r.left,
+                                        y = event.clientY - r.top,
+                                        found = false;
+                                
+                                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                                    for (let cs of choice_shapes) {
+                                        cs.draw();
+                                        if (!found && ctx.isPointInPath(x, y)) {
+                                            cs.draw("rgba(135, 206, 250, 0.5)");
+                                            found = true;
+                                        } else if (cs.name === choice) {
+                                            cs.draw("rgba(34, 139, 34, 0.5)");
+                                        }
+                                    }
+                                }
+
+                                canvas.onmousedown = function(event) {
+                                    var r = canvas.getBoundingClientRect(),
+                                        x = event.clientX - r.left,
+                                        y = event.clientY - r.top,
+                                        found = false;
+                                
+                                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                                    for (let cs of choice_shapes) {
+                                        cs.draw();
+                                        if (!found && ctx.isPointInPath(x, y)) {
+                                            cs.draw("rgba(34, 139, 34, 0.5)");
+                                            choice = cs.name;
+                                        } else if (cs.name === choice) {
+                                            cs.draw("rgba(34, 139, 34, 0.5)");
+                                        }
+                                    }
+                                }
+
+                                canvasSection.appendChild(canvas);
+
+                                // Add to Document
+                                parent.appendChild(canvasSection);
+                                parent.appendChild(infoSection);
+                            
+                                // Start Timer
+                                var timer = setInterval(function () {
+                                    timeDisplay.innerText = timeout.toString();
+                                    if (--timeout < 0) {
+                                        socket.emit('timeout', {code: gameCode, choice: choice});
+                                        clearInterval(timer);
+                                    }
+                                }, 1000);
+                            });
+
+                            socket.on('result update', function (data) {
+                                // Colors [19 options max]
+                                var COLORS = ['(230, 25, 75)', '(60, 180, 75)', '(255, 225, 25)', '(0, 130, 200)', '(245, 130, 48)', '(145, 30, 180)', '(70, 240, 240)', '(240, 50, 230)', '(210, 245, 60)', '(250, 190, 212)', '(0, 128, 128)', '(220, 190, 255)', '(170, 110, 40)', '(255, 250, 200)', '(128, 0, 0)', '(170, 255, 195)', '(128, 128, 0)', '(255, 215, 180)', '(0, 0, 128)', '(128, 128, 128)', '(0, 0, 0)'].reverse();
+                                var event = data.event;
+                                // Clear Screen
+                                parent.innerHTML = "";
+
+                                // Load Canvas with Results
+                                var canvasSection = document.createElement('section');
+                                canvasSection.classList.add('container')
+                                var canvasRow = document.createElement('div');
+                                canvasRow.classList.add('row');
+                                var canvasColumn = document.createElement('div');
+                                canvasRow.classList.add('col-6');
+                                var canvas = document.createElement('canvas');
+                                canvas.style = "background-image: url('" + "data:image/png;base64," + event.event.image + "');";
+                                var ctx = canvas.getContext('2d');
+                                var img = new Image();
+                                img.src = "data:image/png;base64," + event.event.image;
+                                
+                                var choice_shapes = [];
+                                
+                                // Load the Shapes
+                                for (let choice of event.event.choices) {
+                                    choice_shapes.push({
+                                        name: choice.x.toString() + ':' + choice.y.toString(),
+                                        color: COLORS.pop(),
+                                        draw: function () {
+                                            var color = this.color.replace(')', '');
+                                            ctx.beginPath(); 
+                                            ctx.arc(choice.x, choice.y, 20, 0, 2 * Math.PI);
+                                            ctx.fillStyle = "rgba" + color + ", 0.5)";
+                                            ctx.fill();
+                                            ctx.closePath();
+                                        }
+                                    });
+                                }
+
+                                img.onload = function (event) {
+                                    // Load the Canvas
+                                    canvas.width = img.width;
+                                    canvas.height = img.height;
+                                    for (let cs of choice_shapes)
+                                        cs.draw();
+                                }
+                                
+
+                                // Add Canvas to Section
+                                canvasColumn.appendChild(canvas);
+                                canvasRow.appendChild(canvasColumn);
+                                canvasSection.appendChild(canvasRow);
+
+                                // Information Column
+                                var infoColumn = document.createElement('div');
+                                infoColumn.classList.add('col-6');
+
+                                var infoList = document.createElement('ul');
+                                infoList.classList.add('alt');
+                                
+                                for (let cs of choice_shapes) {
+                                    var infoListElem = document.createElement('li');
+                                    var info = document.createElement('h2');
+                                    var votes = document.createElement('h5');
+                                    votes.innerHTML = '&nbsp&nbsp&nbsp vote(s)';
+                                    votes.style = 'display: inline;';
+                                    info.style = "color: rgb" + cs.color + ';' + 'display: inline;';
+                                    info.innerText = event[cs.name];
+                                    
+                                    infoListElem.appendChild(info);
+                                    infoListElem.appendChild(votes);
+                                    infoList.appendChild(infoListElem);
+                                }
+
+                                // Add Information to Section
+                                infoColumn.appendChild(infoList);
+                                canvasRow.appendChild(infoColumn);
+
+                                // Add all to website
+                                parent.appendChild(canvasSection);
+                            });
+                        </script> 
+                    </div>
+                </section>
+
+        </div>
+
+		<!-- Footer -->
+			<footer id="footer" class="wrapper style1-alt">
+				<div class="inner">
+					<ul class="menu">
+						<li>&copy; Vraj Prajapati. All rights reserved.</li><li>Design: <a href="http://html5up.net">HTML5 UP</a></li>
+					</ul>
+				</div>
+			</footer>
+
+		<!-- Scripts -->
+			<script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+			<script src="{{ url_for('static', filename='js/jquery.scrollex.min.js') }}"></script>
+			<script src="{{ url_for('static', filename='js/jquery.scrolly.min.js') }}"></script>
+			<script src="{{ url_for('static', filename='js/browser.min.js') }}"></script>
+			<script src="{{ url_for('static', filename='js/breakpoints.min.js') }}"></script>
+			<script src="{{ url_for('static', filename='js/util.js') }}"></script>
+			<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+	</body>
+</html>
