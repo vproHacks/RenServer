@@ -12,6 +12,7 @@
         <div id="wrapper">
                 <section id="main" class="wrapper style1">
                     <div class="inner" id="content-div">
+                        <h1> Waiting... </h1>
                         <script src="https://cdn.socket.io/socket.io-3.0.1.min.js"></script>
                         <script type="text/javascript">
                             // Notice: I can't write JS for my life
@@ -210,6 +211,17 @@
 
                                 // Add all to website
                                 parent.appendChild(canvasSection);
+                            });
+
+                            socket.on('game over', function (data) {
+                                var overCode = data.code;
+                                if (overCode === gameCode) {
+                                    // Clear Screen
+                                    parent.innerHTML = "";
+                                    var returnHeader = document.createElement('h1');
+                                    returnHeader.innerHTML = "<a href='{{ url_for('index') }}'>Game Over.</a>";
+                                    parent.appendChild(returnHeader);
+                                }
                             });
                         </script> 
                     </div>

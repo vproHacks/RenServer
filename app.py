@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, Response
 from flask_socketio import SocketIO, emit
 import random
 
@@ -14,18 +14,12 @@ host: str
 code: str
 count: int
 '''
-games = {
-    ''''123456': {
-        'name': 'Doki Doki Literature Club',
-        'host': 'vpro8725',
-        'code': '123456'
-    }'''
-}
+games = dict()
 
 def generate_code():
-    result = random.choices(str(1234567890), k=6)
+    result = ''.join(random.choices(str(1234567890), k=6))
     while result in games:
-        result = random.choices(str(1234567890), k=6)
+        result = ''.join(random.choices(str(1234567890), k=6))
     return result
 
 @app.route('/create', methods=['POST', 'GET'])
@@ -34,7 +28,7 @@ def create():
         data = dict(request.json)
         data['code'] = generate_code()
         games[data['code']] = data
-        return str({'code': data['code']})
+        return data['code']
     return redirect(url_for('index'))
 
 @app.route('/', methods=['POST', 'GET'])
@@ -75,6 +69,13 @@ def event(code):
 def results(code):
     if request.method == 'POST':
         return str(games[code]['event'][-1])
+    return redirect(url_for('index'))
+
+@app.route('/end/<code>', methods=['POST', 'GET'])
+def end_game(code):
+    if request.method == 'POST':
+        games.pop(code)
+        socketio.emit('game over', {'code': code})
     return redirect(url_for('index'))
 
 @app.route('/game/<code>')
