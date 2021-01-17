@@ -3,3 +3,4 @@ flask_socketio==5.0.1
 gevent-websocket==0.10.1
 dnspython==1.16.0
 eventlet==0.30.0
+requests==2.24.0
