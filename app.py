@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, Response
 from flask_socketio import SocketIO, emit
-import random
+import random, requests
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'HTNPLUSPLUSTIME'
@@ -82,6 +82,14 @@ def end_game(code):
 def game(code):
     return render_template('game.html', game=games[code])
 
+@app.route('/timeout/<code>', methods=['POST', 'GET'])
+def timeout_route(code):
+    if request.method == 'POST':
+        data = request.json
+        socketio.emit('result update', {'code': code, 'event': games[code]['event'][-1]})
+        return str({'status': 'GOOD'})
+    return redirect(url_for('index'))
+
 @socketio.on('hello')
 def hello(info):
     code = info['code']
@@ -98,7 +106,7 @@ def timeout(info):
     if choice:
         # RIP RAM
         games[code]['event'][-1][choice] += 1
-    emit('result update', {'event': games[code]['event'][-1]})
+    requests.post(url_for('timeout', code=code), json={'code': code})
 
 
 def run():
