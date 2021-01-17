@@ -1,9 +1,11 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, Response, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
+from werkzeug.utils import secure_filename
 from flask_socketio import SocketIO, emit
-import random, requests
+import random, requests, os
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'HTNPLUSPLUSTIME'
+app.config['UPLOAD_FOLDER'] = './uploads/'
 socketio = SocketIO(app)
 
 # Change DB System Later
@@ -82,13 +84,27 @@ def end_game(code):
 def game(code):
     return render_template('game.html', game=games[code])
 
-@app.route('/timeout/<code>', methods=['POST', 'GET'])
-def timeout_route(code):
+@app.route('/upload', methods=['POST', 'GET'])
+def upload():
+    # pls no abuse :(
     if request.method == 'POST':
-        data = request.json
-        socketio.emit('result update', {'code': code, 'event': games[code]['event'][-1]})
-        return str({'status': 'GOOD'})
-    return redirect(url_for('index'))
+        if 'file' not in request.files:
+            return redirect(url_for('index'))
+        file = request.files.get('file')
+        if file.filename == '':
+            return redirect(url_for('index'))
+        if file:
+            fname = secure_filename(file.filename)
+            from uuid import uuid4
+            x = uuid4().__str__()[:8]
+            fname = f'{x}-{fname}'
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+            return jsonify({'url': url_for('file', filename=fname)})
+    return 'INVALID'
+
+@app.route('/file/<filename>')
+def get_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 @socketio.on('hello')
 def hello(info):
@@ -106,7 +122,7 @@ def timeout(info):
     if choice:
         # RIP RAM
         games[code]['event'][-1][choice] += 1
-    requests.post(url_for('timeout', code=code), json={'code': code})
+    emit('result update', {'event': games[code]['event'][-1]})
 
 
 def run():
