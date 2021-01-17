@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, Response
+from flask import Flask, render_template, request, redirect, url_for, flash, Response, jsonify
 from flask_socketio import SocketIO, emit
 import random, requests
 
@@ -68,7 +68,7 @@ def event(code):
 @app.route('/results/<code>', methods=['POST', 'GET'])
 def results(code):
     if request.method == 'POST':
-        return str(games[code]['event'][-1])
+        return jsonify(games[code]['event'][-1])
     return redirect(url_for('index'))
 
 @app.route('/end/<code>', methods=['POST', 'GET'])
